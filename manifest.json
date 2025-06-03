@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Team Timezone Map",
+  "version": "1.0",
+  "description": "Visual map showing team members across different timezones",
+  "permissions": [
+    "storage"
+  ],
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  },
+  "action": {
+    "default_title": "Team Timezone Map"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

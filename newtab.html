@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Team Timezone Map</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background: #0a0a0a;
+        color: #ffffff;
+        font-family: Arial, sans-serif;
+        overflow: hidden;
+        height: 100vh;
+      }
+
+      .header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        padding: 15px 25px;
+        background: rgba(20, 20, 20, 0.9);
+        border-bottom: 1px solid #333;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 100;
+      }
+
+      .header h1 {
+        font-size: 20px;
+        font-weight: normal;
+      }
+
+      .time-info {
+        font-size: 14px;
+        color: #ccc;
+      }
+
+      .config-btn {
+        background: #ff69b4;
+        border: none;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      .config-btn:hover {
+        background: #ff1493;
+      }
+
+      .map-container {
+        position: absolute;
+        top: 60px;
+        left: 0;
+        width: 100%;
+        height: calc(100vh - 60px);
+        background: #0a0a0a;
+      }
+
+      .world-map {
+        width: 100%;
+        height: 100%;
+        background-color: #0a0a0a;
+        position: relative;
+      }
+
+      .world-map::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: url("https://simplemaps.com/static/demos/resources/svg-library/svgs/world.svg");
+        background-size: 80%;
+        background-position: center center;
+        background-repeat: no-repeat;
+        opacity: 0.3;
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      .timezone-line {
+        position: absolute;
+        width: 2px;
+        height: 100%;
+        background: rgba(100, 100, 100, 0.3);
+        transition: all 0.3s ease;
+        cursor: pointer;
+      }
+
+      .timezone-line:hover {
+        background: rgba(100, 150, 255, 0.8);
+        width: 4px;
+        box-shadow: 0 0 10px rgba(100, 150, 255, 0.5);
+      }
+
+      .timezone-line.has-team {
+        background: rgba(255, 105, 180, 0.5);
+        width: 3px;
+      }
+
+      .timezone-line.has-team:hover {
+        background: rgba(255, 105, 180, 1);
+        width: 5px;
+        box-shadow: 0 0 15px rgba(255, 105, 180, 0.8);
+      }
+
+      .timezone-label {
+        position: absolute;
+        top: 20px;
+        font-size: 10px;
+        color: #666;
+        transform: translateX(-50%);
+        pointer-events: none;
+        text-align: center;
+        line-height: 1.2;
+      }
+
+      .timezone-label.has-team {
+        color: #ff69b4;
+        font-weight: bold;
+      }
+
+      .timezone-label .utc-offset {
+        display: block;
+        font-size: 9px;
+        color: #888;
+        margin-top: 2px;
+      }
+
+      .timezone-label.has-team .utc-offset {
+        color: #ff69b4;
+      }
+
+      /* Removed .city-marker CSS to let inline styles work */
+
+      .city-marker {
+        background: #ff69b4;
+        border: 2px solid #ff1493;
+        animation: pulse 2s infinite;
+      }
+
+      /* Add these styles to your existing CSS in newtab.html */
+
+      /* Highlighted timezone bar when hovering over city markers */
+      .timezone-line.highlighted-bar {
+        background: rgba(255, 105, 180, 1) !important;
+        width: 6px !important;
+        box-shadow: 0 0 20px rgba(255, 105, 180, 0.8) !important;
+        transform: scaleY(1.1);
+        z-index: 10;
+      }
+
+      /* Highlighted timezone label when hovering over city markers */
+      .timezone-label.highlighted-label {
+        color: #fff !important;
+        background: rgba(255, 105, 180, 0.2);
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid rgba(255, 105, 180, 0.5);
+        font-weight: bold !important;
+      }
+
+      .timezone-label.highlighted-label .utc-offset {
+        color: #fff !important;
+      }
+
+      /* Improved member card positioning and multiple members support */
+      .member-card {
+        position: absolute;
+        background: rgba(30, 30, 30, 0.98);
+        border: 1px solid #ff69b4;
+        border-radius: 8px;
+        padding: 15px;
+        min-width: 250px;
+        max-width: 300px;
+        z-index: 2000; /* Increased z-index to appear above everything */
+        display: none;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9);
+        backdrop-filter: blur(10px);
+      }
+
+      /* Better member info layout for multiple members */
+      .member-info {
+        overflow: hidden; /* To contain floated elements */
+        min-height: 45px; /* Ensure consistent height */
+      }
+
+      @keyframes pulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(255, 105, 180, 0.7);
+        }
+        70% {
+          box-shadow: 0 0 0 10px rgba(255, 105, 180, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(255, 105, 180, 0);
+        }
+      }
+
+      .city-marker:hover {
+        animation: none;
+        box-shadow: 0 0 15px rgba(255, 105, 180, 1);
+      }
+
+      [id^="city-marker-"] {
+        background: #ff69b4 !important;
+        border: 2px solid #ff1493 !important;
+        background-color: #ff69b4 !important;
+      }
+
+      .member-card {
+        position: absolute;
+        background: rgba(30, 30, 30, 0.95);
+        border: 1px solid #ff69b4;
+        border-radius: 8px;
+        padding: 15px;
+        min-width: 250px;
+        z-index: 20;
+        display: none;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+      }
+
+      .member-city {
+        color: #ff69b4;
+        font-size: 12px;
+        font-weight: bold;
+        margin-bottom: 5px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .member-photo {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #ff69b4;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        float: left;
+        margin-right: 12px;
+      }
+
+      .member-info h3 {
+        margin: 0 0 4px 0;
+        font-size: 16px;
+      }
+
+      .member-role {
+        color: #ccc;
+        font-size: 12px;
+        margin-bottom: 8px;
+      }
+
+      .member-time {
+        color: #ff69b4;
+        font-size: 14px;
+        font-weight: bold;
+      }
+
+      .config-panel {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 500px;
+        max-height: 70vh;
+        background: rgba(20, 20, 20, 0.98);
+        border: 1px solid #ff69b4;
+        border-radius: 8px;
+        padding: 20px;
+        z-index: 200;
+        display: none;
+        overflow-y: auto;
+      }
+
+      .config-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        border-bottom: 1px solid #333;
+        padding-bottom: 10px;
+      }
+
+      .close-btn {
+        background: #666;
+        border: none;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      .member-form {
+        background: #333;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 15px;
+      }
+
+      .form-group {
+        margin-bottom: 10px;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 12px;
+        color: #ccc;
+      }
+
+      .form-group input,
+      .form-group select {
+        width: 100%;
+        padding: 8px;
+        background: #555;
+        border: 1px solid #666;
+        color: white;
+        border-radius: 4px;
+      }
+
+      .add-btn,
+      .delete-btn {
+        padding: 8px 15px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-right: 10px;
+      }
+
+      .add-btn {
+        background: #ff69b4;
+        color: white;
+      }
+
+      .delete-btn {
+        background: #dc3545;
+        color: white;
+      }
+
+      .add-btn:hover {
+        background: #ff1493;
+      }
+
+      .delete-btn:hover {
+        background: #c82333;
+      }
+
+      /* Add these styles to your existing CSS in newtab.html */
+
+      /* Highlighted timezone bar when hovering over city markers */
+      .timezone-line.highlighted-bar {
+        background: rgba(255, 105, 180, 1) !important;
+        width: 6px !important;
+        box-shadow: 0 0 20px rgba(255, 105, 180, 0.8) !important;
+        transform: scaleY(1.1);
+        z-index: 10;
+      }
+
+      /* Highlighted timezone label when hovering over city markers */
+      .timezone-label.highlighted-label {
+        color: #fff !important;
+        background: rgba(255, 105, 180, 0.2);
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid rgba(255, 105, 180, 0.5);
+        font-weight: bold !important;
+      }
+
+      .timezone-label.highlighted-label .utc-offset {
+        color: #fff !important;
+      }
+
+      /* Cities info display on timezone labels */
+      .timezone-label .cities-info {
+        display: block;
+        font-size: 8px;
+        color: #ff69b4;
+        margin-top: 2px;
+        line-height: 1;
+        font-weight: normal;
+      }
+
+      .timezone-label.has-team .cities-info {
+        color: #fff;
+      }
+
+      /* Improved member card positioning and multiple members support */
+      .member-card {
+        position: absolute;
+        background: rgba(30, 30, 30, 0.98);
+        border: 1px solid #ff69b4;
+        border-radius: 8px;
+        padding: 15px;
+        min-width: 250px;
+        max-width: 300px;
+        z-index: 2000; /* Increased z-index to appear above everything */
+        display: none;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9);
+        backdrop-filter: blur(10px);
+      }
+
+      /* Better member info layout for multiple members */
+      .member-info {
+        overflow: hidden; /* To contain floated elements */
+        min-height: 45px; /* Ensure consistent height */
+      }
+      /* Highlighted timezone bar when hovering over city markers */
+      .timezone-line.highlighted-bar {
+        background: rgba(255, 105, 180, 1) !important;
+        width: 6px !important;
+        box-shadow: 0 0 20px rgba(255, 105, 180, 0.8) !important;
+        transform: scaleY(1.1);
+        z-index: 10;
+      }
+
+      /* Highlighted timezone label when hovering over city markers */
+      .timezone-label.highlighted-label {
+        color: #fff !important;
+        background: rgba(255, 105, 180, 0.2);
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid rgba(255, 105, 180, 0.5);
+        font-weight: bold !important;
+      }
+
+      .timezone-label.highlighted-label .utc-offset {
+        color: #fff !important;
+      }
+
+      /* Cities info display on timezone labels */
+      .timezone-label .cities-info {
+        display: block;
+        font-size: 8px;
+        color: #ff69b4;
+        margin-top: 2px;
+        line-height: 1;
+        font-weight: normal;
+      }
+
+      .timezone-label.has-team .cities-info {
+        color: #fff;
+      }
+
+      /* Improved member card positioning and multiple members support */
+      .member-card {
+        position: absolute;
+        background: rgba(30, 30, 30, 0.98);
+        border: 1px solid #ff69b4;
+        border-radius: 8px;
+        padding: 15px;
+        min-width: 250px;
+        max-width: 300px;
+        z-index: 2000; /* Increased z-index to appear above everything */
+        display: none;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9);
+        backdrop-filter: blur(10px);
+      }
+
+      /* Better member info layout for multiple members */
+      .member-info {
+        overflow: hidden; /* To contain floated elements */
+        min-height: 45px; /* Ensure consistent height */
+      }
+
+      /* Enhanced form styling for timezone selection */
+      .form-group label {
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+        font-size: 12px;
+        color: #ccc;
+      }
+
+      .form-group input[type="checkbox"] {
+        width: auto;
+        margin-right: 8px;
+        margin-bottom: 0;
+      }
+
+      .timezone-select {
+        margin-top: 5px;
+      }
+
+      .timezone-select:disabled {
+        opacity: 0.5;
+        background: #333 !important;
+        color: #666 !important;
+        cursor: not-allowed;
+      }
+
+      /* Config panel enhancements */
+      .config-panel {
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+
+      .member-form {
+        border-left: 3px solid #ff69b4;
+        margin-bottom: 20px;
+      }
+      /* Highlighted timezone bar when hovering over city markers */
+      .timezone-line.highlighted-bar {
+        background: rgba(255, 105, 180, 1) !important;
+        width: 6px !important;
+        box-shadow: 0 0 20px rgba(255, 105, 180, 0.8) !important;
+        transform: scaleY(1.1);
+        z-index: 10;
+      }
+
+      /* Highlighted timezone label when hovering over city markers */
+      .timezone-label.highlighted-label {
+        color: #fff !important;
+        background: rgba(255, 105, 180, 0.2);
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid rgba(255, 105, 180, 0.5);
+        font-weight: bold !important;
+      }
+
+      .timezone-label.highlighted-label .utc-offset {
+        color: #fff !important;
+      }
+
+      /* Cities info display on timezone labels */
+      .timezone-label .cities-info {
+        display: block;
+        font-size: 8px;
+        color: #ff69b4;
+        margin-top: 2px;
+        line-height: 1;
+        font-weight: normal;
+      }
+
+      .timezone-label.has-team .cities-info {
+        color: #fff;
+      }
+
+      /* Improved member card positioning and multiple members support */
+      .member-card {
+        position: absolute;
+        background: rgba(30, 30, 30, 0.98);
+        border: 1px solid #ff69b4;
+        border-radius: 8px;
+        padding: 15px;
+        min-width: 250px;
+        max-width: 300px;
+        z-index: 2000; /* Increased z-index to appear above everything */
+        display: none;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9);
+        backdrop-filter: blur(10px);
+      }
+
+      /* Better member info layout for multiple members */
+      .member-info {
+        overflow: hidden; /* To contain floated elements */
+        min-height: 45px; /* Ensure consistent height */
+      }
+
+      /* Enhanced form styling for timezone selection */
+      .form-group label {
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+        font-size: 12px;
+        color: #ccc;
+      }
+
+      .form-group input[type="checkbox"] {
+        width: auto;
+        margin-right: 8px;
+        margin-bottom: 0;
+      }
+
+      .timezone-select {
+        margin-top: 5px;
+      }
+
+      .timezone-select:disabled {
+        opacity: 0.5;
+        background: #333 !important;
+        color: #666 !important;
+        cursor: not-allowed;
+      }
+
+      /* Config panel enhancements - ensure it appears above markers */
+      .config-panel {
+        max-height: 80vh;
+        overflow-y: auto;
+        z-index: 3000 !important; /* Higher than markers (500) and member cards (2000) */
+      }
+
+      .member-form {
+        border-left: 3px solid #ff69b4;
+        margin-bottom: 20px;
+      }
+
+      /* Header improvements to ensure proper layering */
+      .header {
+        z-index: 1000;
+      }
+
+      /* City markers - lower z-index for proper layering */
+      .city-marker {
+        z-index: 500 !important; /* Lower than config panel and member cards */
+      }
+
+      /* Improved city dropdown styling */
+      .member-select,
+      .timezone-select {
+        max-height: 200px;
+        overflow-y: auto;
+      }
+
+      /* Group Canadian cities visually in dropdown */
+      .member-select option[value*="Toronto"],
+      .member-select option[value*="Vancouver"],
+      .member-select option[value*="Montreal"],
+      .member-select option[value*="Ottawa"],
+      .member-select option[value*="Calgary"],
+      .member-select option[value*="Edmonton"],
+      .member-select option[value*="Quebec"],
+      .member-select option[value*="Winnipeg"],
+      .member-select option[value*="Halifax"],
+      .member-select option[value*="Victoria"],
+      .member-select option[value*="Saskatoon"],
+      .member-select option[value*="St. John's"] {
+        background-color: rgba(70, 130, 180, 0.1);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>Team Timezone Map</h1>
+      <div class="time-info" id="timeInfo">Loading...</div>
+      <button class="config-btn" id="configBtn">⚙️ Configure</button>
+    </div>
+
+    <div class="map-container">
+      <div class="world-map" id="worldMap">
+        <!-- Timezone lines and markers will be added here -->
+      </div>
+      <div class="member-card" id="memberCard"></div>
+    </div>
+
+    <div class="config-panel" id="configPanel">
+      <div class="config-header">
+        <h2>Team Configuration</h2>
+        <button class="close-btn" id="closeBtn">✕</button>
+      </div>
+      <div id="membersList"></div>
+      <button class="add-btn" id="addBtn">+ Add Member</button>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
